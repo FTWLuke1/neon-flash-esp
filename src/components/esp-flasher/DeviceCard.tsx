@@ -42,9 +42,22 @@ export function DeviceCard({ isConnected, deviceInfo, onConnect, connecting, err
 
       <CardContent className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <AlertCircle className="h-4 w-4 text-destructive" />
+          <div className="space-y-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <p className="text-sm text-destructive font-medium">Connection Failed</p>
+            </div>
             <p className="text-sm text-destructive">{error}</p>
+            <div className="text-xs text-destructive/80 space-y-1">
+              <p><strong>Troubleshooting tips:</strong></p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Make sure you're using Chrome or Edge (Web Serial required)</li>
+                <li>Use HTTPS or localhost (not HTTP)</li>
+                <li>Connect your ESP device via USB cable</li>
+                <li>Allow access when the browser asks for permissions</li>
+                <li>Try holding BOOT button while connecting</li>
+              </ul>
+            </div>
           </div>
         )}
 

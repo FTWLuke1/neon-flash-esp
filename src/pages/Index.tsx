@@ -50,11 +50,19 @@ const Index = () => {
 
   // Check Web Serial support
   const [webSerialSupported, setWebSerialSupported] = useState(true);
+  const [browserWarning, setBrowserWarning] = useState<string>();
 
   useEffect(() => {
     const checkSupport = async () => {
       const supported = await flashService.checkWebSerialSupport();
       setWebSerialSupported(supported);
+      
+      // Check for specific browser/environment issues
+      if (!supported) {
+        setBrowserWarning('Web Serial API not supported in this browser.');
+      } else if (location.protocol !== 'https:' && !location.hostname.includes('localhost') && location.hostname !== '127.0.0.1') {
+        setBrowserWarning('Web Serial requires HTTPS. Some features may not work over HTTP.');
+      }
     };
     checkSupport();
   }, [flashService]);
@@ -80,10 +88,12 @@ const Index = () => {
       setDeviceError(`${errorMessage} ${suggestion}`);
       
       toast({
-        title: "Connection Failed",
+        title: "Connection Failed", 
         description: errorMessage,
         variant: "destructive",
       });
+      
+      console.error('Connection failed:', error);
     } finally {
       setConnecting(false);
     }
@@ -221,6 +231,18 @@ const Index = () => {
           </div>
         </div>
       </header>
+
+      {/* Browser Warning */}
+      {browserWarning && (
+        <div className="border-b border-amber-500/20 bg-amber-500/5">
+          <div className="container mx-auto px-4 py-3 max-w-4xl">
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-4 w-4" />
+              <p className="text-sm">{browserWarning}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">

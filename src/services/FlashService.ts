@@ -57,24 +57,78 @@ export class FlashService {
     return 'serial' in navigator && !!navigator.serial;
   }
 
-  async connect(): Promise<DeviceInfo> {
+  async getAvailablePorts(): Promise<SerialPort[]> {
+    if (!navigator.serial) {
+      return [];
+    }
+    
     try {
-      // Request port from user
-      this.port = await navigator.serial!.requestPort();
+      return await navigator.serial.getPorts();
+    } catch (error) {
+      console.error('Failed to get available ports:', error);
+      return [];
+    }
+  }
+
+  async connect(): Promise<DeviceInfo> {
+    if (!navigator.serial) {
+      throw new Error('Web Serial API not supported. Please use Chrome or Edge on desktop.');
+    }
+
+    // Check if running on HTTPS or localhost
+    if (location.protocol !== 'https:' && !location.hostname.includes('localhost') && location.hostname !== '127.0.0.1') {
+      throw new Error('Web Serial requires HTTPS. Please use HTTPS or run on localhost.');
+    }
+
+    try {
+      // First check for existing ports
+      const existingPorts = await this.getAvailablePorts();
+      console.log('Existing ports:', existingPorts);
+
+      // Request port from user with ESP-specific filters
+      this.port = await navigator.serial.requestPort({
+        filters: [
+          // Common ESP32 USB-to-Serial chips
+          { usbVendorId: 0x10C4, usbProductId: 0xEA60 }, // CP210x
+          { usbVendorId: 0x1A86, usbProductId: 0x7523 }, // CH340
+          { usbVendorId: 0x0403, usbProductId: 0x6001 }, // FTDI FT232
+          { usbVendorId: 0x303A, usbProductId: 0x1001 }, // ESP32-S2
+          { usbVendorId: 0x303A, usbProductId: 0x1002 }, // ESP32-S3
+        ]
+      });
       
-      // Open the port
+      console.log('Selected port:', this.port);
+      
+      // Open the port with proper settings
       await this.port.open({ 
         baudRate: 115200,
-        bufferSize: 1024
+        bufferSize: 1024,
       });
 
+      console.log('Port opened successfully');
+
       // Initialize esptool-js (mock implementation for now)
-      // In a real implementation, you would use the actual esptool-js library
       const deviceInfo = await this.detectDevice();
       
       return deviceInfo;
-    } catch (error) {
-      throw new Error(`Failed to connect: ${(error as Error).message}`);
+    } catch (error: any) {
+      console.error('Connection error:', error);
+      
+      // Provide specific error messages based on error type
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Permission denied. Please allow access to serial ports when prompted.');
+      }
+      if (error.name === 'NotFoundError') {
+        throw new Error('No device selected. Please connect your ESP device via USB and select it from the dialog.');
+      }
+      if (error.name === 'SecurityError') {
+        throw new Error('Security error. Make sure you\'re using HTTPS or localhost.');
+      }
+      if (error.message?.includes('permissions policy')) {
+        throw new Error('Web Serial blocked by permissions policy. Try opening in a new tab or check browser settings.');
+      }
+      
+      throw new Error(`Connection failed: ${error.message}`);
     }
   }
 
